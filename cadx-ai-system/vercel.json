@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "cadx-ai-system/index.html", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/(.*)", "dest": "cadx-ai-system/index.html" }
+  ]
+}
