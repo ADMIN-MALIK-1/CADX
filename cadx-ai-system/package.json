@@ -1,0 +1,17 @@
+{
+  "name": "cadx-ai-system",
+  "version": "1.0.0",
+  "description": "AI-Powered Computer-Aided Diagnosis System using IBM Watson",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx live-server --open=index.html",
+    "dev": "npx live-server --open=index.html --watch=index.html"
+  },
+  "keywords": ["cadx", "ibm-watson", "medical-ai", "diagnosis"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "dotenv": "^16.0.0",
+    "live-server": "^1.2.2"
+  }
+}

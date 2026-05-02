@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CADx AI — Computer-Aided Diagnosis System</title>
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+  <!-- Google Fonts: Syne (display) + DM Mono (data/body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Syne', 'sans-serif'],
+            mono: ['DM Mono', 'monospace'],
+          },
+          colors: {
+            bg:      '#0a0c0f',
+            panel:   '#10141a',
+            card:    '#161c26',
+            border:  '#1e2736',
+            accent:  '#00d4a8',
+            accentd: '#00a882',
+            warn:    '#f59e0b',
+            danger:  '#ef4444',
+            muted:   '#4a5568',
+            text:    '#e2e8f0',
+            sub:     '#8892a0',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      background: #0a0c0f;
+      color: #e2e8f0;
+      font-family: 'DM Mono', monospace;
+      margin: 0;
+    }
+
+    /* Sidebar */
+    #sidebar { width: 240px; flex-shrink: 0; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: #10141a; }
+    ::-webkit-scrollbar-thumb { background: #1e2736; border-radius: 2px; }
+
+    /* Nav items */
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 16px; border-radius: 8px; cursor: pointer;
+      transition: all .2s; font-size: 13px; font-weight: 500;
+      color: #8892a0; letter-spacing: .02em;
+    }
+    .nav-item:hover { background: #161c26; color: #e2e8f0; }
+    .nav-item.active { background: #0d2520; color: #00d4a8; }
+    .nav-item.active i { color: #00d4a8; }
+
+    /* Page sections */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* Accent glow */
+    .glow { box-shadow: 0 0 24px rgba(0,212,168,.12); }
+    .glow-sm { box-shadow: 0 0 12px rgba(0,212,168,.10); }
+
+    /* Risk badge */
+    .badge-high   { background:#2d1414; color:#ef4444; border:1px solid #3d1a1a; }
+    .badge-medium { background:#2d2414; color:#f59e0b; border:1px solid #3d2e14; }
+    .badge-low    { background:#0d2520; color:#00d4a8; border:1px solid #0e3028; }
+
+    /* Pulse dot */
+    @keyframes pulse-ring {
+      0%   { transform:scale(.8); opacity:1; }
+      100% { transform:scale(1.8); opacity:0; }
+    }
+    .live-dot::before {
+      content:''; display:block; width:8px; height:8px;
+      border-radius:50%; background:#00d4a8;
+      animation: pulse-ring 1.6s ease-out infinite;
+    }
+
+    /* Skeleton shimmer */
+    @keyframes shimmer {
+      0%   { background-position: -400px 0; }
+      100% { background-position: 400px 0; }
+    }
+    .shimmer {
+      background: linear-gradient(90deg,#161c26 25%,#1e2736 50%,#161c26 75%);
+      background-size: 800px 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 6px;
+    }
+
+    /* Fade-in */
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(12px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    .fade-up { animation: fadeUp .35s ease forwards; }
+
+    /* Input / Textarea */
+    input, select, textarea {
+      background: #0a0c0f !important;
+      border: 1px solid #1e2736 !important;
+      color: #e2e8f0 !important;
+      border-radius: 8px !important;
+      font-family: 'DM Mono', monospace !important;
+      font-size: 13px !important;
+      transition: border .2s !important;
+      outline: none !important;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: #00d4a8 !important;
+      box-shadow: 0 0 0 2px rgba(0,212,168,.08) !important;
+    }
+    select option { background: #10141a; }
+
+    /* Button */
+    .btn-primary {
+      background: #00d4a8; color: #0a0c0f;
+      font-family:'Syne',sans-serif; font-weight:700; font-size:13px;
+      border:none; border-radius:8px; padding:10px 20px;
+      cursor:pointer; transition:all .2s; letter-spacing:.04em;
+    }
+    .btn-primary:hover { background: #00bfa0; transform:translateY(-1px); }
+    .btn-primary:disabled { background:#1e2736; color:#4a5568; cursor:not-allowed; transform:none; }
+
+    .btn-ghost {
+      background:transparent; color:#8892a0;
+      font-family:'DM Mono',monospace; font-size:12px;
+      border:1px solid #1e2736; border-radius:6px; padding:7px 14px;
+      cursor:pointer; transition:all .2s;
+    }
+    .btn-ghost:hover { border-color:#00d4a8; color:#00d4a8; }
+
+    /* Table rows */
+    .record-row { transition: background .15s; }
+    .record-row:hover { background:#161c26; }
+
+    /* Settings toggle */
+    .toggle-switch {
+      position:relative; width:40px; height:22px;
+      background:#1e2736; border-radius:11px; cursor:pointer; transition:.25s;
+    }
+    .toggle-switch.on { background:#00d4a8; }
+    .toggle-switch::after {
+      content:''; position:absolute; top:3px; left:3px;
+      width:16px; height:16px; border-radius:50%; background:#fff;
+      transition:.25s; box-shadow:0 1px 3px rgba(0,0,0,.4);
+    }
+    .toggle-switch.on::after { left:21px; }
+
+    /* Stat card */
+    .stat-card {
+      background:#161c26; border:1px solid #1e2736; border-radius:12px;
+      padding:20px; transition:border .2s;
+    }
+    .stat-card:hover { border-color:#00d4a8; }
+
+    /* TTS waveform animation */
+    @keyframes wave {
+      0%,100% { height:4px; }
+      50%      { height:20px; }
+    }
+    .wave-bar {
+      width:3px; background:#00d4a8; border-radius:2px;
+      animation: wave 1s ease-in-out infinite;
+    }
+    .wave-bar:nth-child(2) { animation-delay:.15s; }
+    .wave-bar:nth-child(3) { animation-delay:.30s; }
+    .wave-bar:nth-child(4) { animation-delay:.45s; }
+    .wave-bar:nth-child(5) { animation-delay:.60s; }
+
+    /* Chart bar */
+    .chart-bar { transition: height .6s cubic-bezier(.34,1.56,.64,1); }
+
+    /* Notification toast */
+    #toast {
+      position:fixed; bottom:24px; right:24px;
+      background:#161c26; border:1px solid #00d4a8;
+      color:#e2e8f0; font-size:12px; font-family:'DM Mono',monospace;
+      padding:12px 18px; border-radius:10px;
+      box-shadow:0 8px 32px rgba(0,0,0,.5);
+      transition: opacity .3s, transform .3s;
+      opacity:0; transform:translateY(8px); pointer-events:none; z-index:999;
+    }
+    #toast.show { opacity:1; transform:translateY(0); }
+  </style>
+</head>
+
+<body class="flex h-screen overflow-hidden">
+
+<!-- ═══════════════════════════════════════════════════
+     SIDEBAR
+═══════════════════════════════════════════════════ -->
+<aside id="sidebar" class="flex flex-col border-r border-border bg-panel overflow-y-auto">
+
+  <!-- Logo -->
+  <div class="px-5 py-6 border-b border-border">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-lg bg-accent flex items-center justify-center glow-sm flex-shrink-0">
+        <i data-lucide="activity" class="w-5 h-5 text-bg"></i>
+      </div>
+      <div>
+        <div class="font-display font-800 text-sm text-text leading-none">CADx <span class="text-accent">AI</span></div>
+        <div class="text-xs text-sub mt-0.5">v2.4.1 — IBM Stack</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live indicator -->
+  <div class="px-5 py-3 border-b border-border flex items-center gap-3">
+    <div class="live-dot relative w-2 h-2 flex-shrink-0"></div>
+    <span class="text-xs text-accent font-mono">System Online</span>
+  </div>
+
+  <!-- Nav -->
+  <nav class="flex-1 px-3 py-4 flex flex-col gap-1">
+    <div class="text-xs text-muted px-3 mb-2 uppercase tracking-widest">Main</div>
+
+    <div class="nav-item active" onclick="navigate('dashboard')">
+      <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
+    </div>
+    <div class="nav-item" onclick="navigate('intake')">
+      <i data-lucide="user-plus" class="w-4 h-4"></i> Patient Intake
+    </div>
+    <div class="nav-item" onclick="navigate('records')">
+      <i data-lucide="database" class="w-4 h-4"></i> Saved Records
+    </div>
+
+    <div class="text-xs text-muted px-3 mt-4 mb-2 uppercase tracking-widest">System</div>
+    <div class="nav-item" onclick="navigate('settings')">
+      <i data-lucide="settings" class="w-4 h-4"></i> Settings
+    </div>
+  </nav>
+
+  <!-- Footer -->
+  <div class="px-5 py-4 border-t border-border">
+    <div class="text-xs text-muted">IBM Watson NLU + TTS</div>
+    <div class="text-xs text-muted">Cloudant DB (simulated)</div>
+    <div class="text-xs text-accent mt-1">© 2026 CADx AI</div>
+  </div>
+</aside>
+
+<!-- ═══════════════════════════════════════════════════
+     MAIN CONTENT
+═══════════════════════════════════════════════════ -->
+<main class="flex-1 overflow-y-auto bg-bg">
+
+  <!-- Top bar -->
+  <div class="sticky top-0 z-10 border-b border-border bg-bg/90 backdrop-blur px-8 py-4 flex items-center justify-between">
+    <div>
+      <h1 id="page-title" class="font-display font-700 text-lg text-text">Dashboard</h1>
+      <p id="page-sub" class="text-xs text-sub">Overview & system status</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="text-xs text-sub font-mono" id="clock"></div>
+      <div class="w-8 h-8 rounded-full bg-card border border-border flex items-center justify-center">
+        <i data-lucide="user" class="w-4 h-4 text-sub"></i>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── PAGE: Dashboard ─── -->
+  <section id="page-dashboard" class="page active px-8 py-8 fade-up">
+
+    <!-- Stats Row -->
+    <div class="grid grid-cols-4 gap-4 mb-8">
+      <div class="stat-card">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs text-sub uppercase tracking-widest">Total Cases</span>
+          <i data-lucide="folder-open" class="w-4 h-4 text-accent"></i>
+        </div>
+        <div class="font-display font-700 text-3xl text-text" id="stat-total">0</div>
+        <div class="text-xs text-sub mt-1">All-time records</div>
+      </div>
+      <div class="stat-card">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs text-sub uppercase tracking-widest">High Risk</span>
+          <i data-lucide="alert-triangle" class="w-4 h-4 text-danger"></i>
+        </div>
+        <div class="font-display font-700 text-3xl text-danger" id="stat-high">0</div>
+        <div class="text-xs text-sub mt-1">Require urgent review</div>
+      </div>
+      <div class="stat-card">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs text-sub uppercase tracking-widest">Medium Risk</span>
+          <i data-lucide="shield-alert" class="w-4 h-4 text-warn"></i>
+        </div>
+        <div class="font-display font-700 text-3xl text-warn" id="stat-medium">0</div>
+        <div class="text-xs text-sub mt-1">Monitor closely</div>
+      </div>
+      <div class="stat-card">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs text-sub uppercase tracking-widest">Low Risk</span>
+          <i data-lucide="shield-check" class="w-4 h-4 text-accent"></i>
+        </div>
+        <div class="font-display font-700 text-3xl text-accent" id="stat-low">0</div>
+        <div class="text-xs text-sub mt-1">Routine follow-up</div>
+      </div>
+    </div>
+
+    <!-- Chart + Recent -->
+    <div class="grid grid-cols-5 gap-6">
+
+      <!-- Bar chart -->
+      <div class="col-span-2 bg-card border border-border rounded-xl p-6">
+        <div class="flex items-center justify-between mb-6">
+          <div class="font-display font-600 text-sm text-text">Weekly Intake</div>
+          <span class="text-xs text-sub">Last 7 days</span>
+        </div>
+        <div class="flex items-end gap-3 h-32" id="chart-bars">
+          <!-- JS renders bars -->
+        </div>
+        <div class="flex gap-3 mt-2" id="chart-labels">
+          <!-- JS renders labels -->
+        </div>
+      </div>
+
+      <!-- Recent cases -->
+      <div class="col-span-3 bg-card border border-border rounded-xl p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div class="font-display font-600 text-sm text-text">Recent Diagnoses</div>
+          <button class="btn-ghost" onclick="navigate('records')">View All</button>
+        </div>
+        <div id="recent-list" class="flex flex-col gap-2">
+          <div class="text-xs text-muted text-center py-8">No records yet. Start a patient intake.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- IBM Services status -->
+    <div class="mt-6 bg-card border border-border rounded-xl p-6">
+      <div class="font-display font-600 text-sm text-text mb-4">IBM Cloud Services Status</div>
+      <div class="grid grid-cols-3 gap-4">
+        <div class="flex items-center gap-3">
+          <div class="w-2 h-2 rounded-full bg-accent"></div>
+          <span class="text-xs text-sub">Watson NLU API</span>
+          <span class="ml-auto text-xs text-accent">Simulated ✓</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="w-2 h-2 rounded-full bg-accent"></div>
+          <span class="text-xs text-sub">Text-to-Speech</span>
+          <span class="ml-auto text-xs text-accent">Browser API ✓</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="w-2 h-2 rounded-full bg-accent"></div>
+          <span class="text-xs text-sub">Cloudant DB</span>
+          <span class="ml-auto text-xs text-accent">LocalStorage ✓</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── PAGE: Patient Intake ─── -->
+  <section id="page-intake" class="page px-8 py-8 fade-up">
+    <div class="max-w-3xl">
+
+      <!-- Form card -->
+      <div class="bg-card border border-border rounded-xl p-8 mb-6">
+        <div class="font-display font-700 text-base text-text mb-1">New Patient Intake</div>
+        <div class="text-xs text-sub mb-6">Enter patient details and clinical notes for AI analysis</div>
+
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="block text-xs text-sub mb-2 uppercase tracking-wider">Patient Name</label>
+            <input id="inp-name" type="text" class="w-full px-4 py-3" placeholder="Full name…"/>
+          </div>
+          <div>
+            <label class="block text-xs text-sub mb-2 uppercase tracking-wider">Age</label>
+            <input id="inp-age" type="number" class="w-full px-4 py-3" placeholder="Years…" min="0" max="120"/>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="block text-xs text-sub mb-2 uppercase tracking-wider">Gender</label>
+          <select id="inp-gender" class="w-full px-4 py-3">
+            <option value="">Select…</option>
+            <option>Male</option>
+            <option>Female</option>
+            <option>Non-binary</option>
+            <option>Prefer not to say</option>
+          </select>
+        </div>
+
+        <div class="mb-6">
+          <label class="block text-xs text-sub mb-2 uppercase tracking-wider">Medical Notes / Symptoms</label>
+          <textarea id="inp-notes" rows="5" class="w-full px-4 py-3 resize-none"
+            placeholder="Describe presenting symptoms, duration, severity, relevant history…"></textarea>
+        </div>
+
+        <div class="flex gap-3">
+          <button class="btn-primary flex items-center gap-2" id="btn-analyze" onclick="runAnalysis()">
+            <i data-lucide="cpu" class="w-4 h-4"></i> Analyze with Watson NLU
+          </button>
+          <button class="btn-ghost" onclick="clearForm()">Clear</button>
+        </div>
+      </div>
+
+      <!-- Analysis result card (hidden until run) -->
+      <div id="result-card" class="hidden bg-card border border-border rounded-xl p-8 glow fade-up">
+
+        <!-- Skeleton loading -->
+        <div id="skeleton" class="hidden">
+          <div class="shimmer h-4 w-40 mb-6"></div>
+          <div class="shimmer h-3 w-full mb-3"></div>
+          <div class="shimmer h-3 w-3/4 mb-6"></div>
+          <div class="grid grid-cols-3 gap-4">
+            <div class="shimmer h-20 rounded-xl"></div>
+            <div class="shimmer h-20 rounded-xl"></div>
+            <div class="shimmer h-20 rounded-xl"></div>
+          </div>
+        </div>
+
+        <!-- Real content -->
+        <div id="result-content" class="hidden">
+          <div class="flex items-center justify-between mb-6">
+            <div>
+              <div class="font-display font-700 text-base text-text">Watson NLU Analysis</div>
+              <div class="text-xs text-sub mt-0.5">AI-generated diagnostic summary</div>
+            </div>
+            <div class="flex items-center gap-3">
+              <!-- TTS waveform (hidden unless speaking) -->
+              <div id="tts-wave" class="hidden items-center gap-0.5 h-6">
+                <div class="wave-bar"></div><div class="wave-bar"></div>
+                <div class="wave-bar"></div><div class="wave-bar"></div>
+                <div class="wave-bar"></div>
+              </div>
+              <!-- TTS button -->
+              <!-- IBM TTS NOTE: Replace the SpeechSynthesis call below with
+                   a fetch() to: https://api.us-south.text-to-speech.watson.cloud.ibm.com/
+                   instances/{instance_id}/v1/synthesize
+                   using your IBM_TTS_API_KEY and voice: en-US_AllisonV3Voice -->
+              <button class="btn-ghost flex items-center gap-2" id="btn-tts" onclick="speakDiagnosis()">
+                <i data-lucide="volume-2" class="w-3.5 h-3.5"></i> Read Diagnosis
+              </button>
+              <button class="btn-primary flex items-center gap-2" onclick="saveRecord()">
+                <i data-lucide="save" class="w-3.5 h-3.5"></i> Save to Cloudant
+              </button>
+            </div>
+          </div>
+
+          <!-- Risk badge -->
+          <div class="flex items-center gap-3 mb-6">
+            <span class="text-xs text-sub uppercase tracking-wider">Risk Level:</span>
+            <span id="risk-badge" class="px-3 py-1 rounded-full text-xs font-700 font-display"></span>
+            <span id="severity-text" class="text-xs text-sub"></span>
+          </div>
+
+          <!-- Metrics row -->
+          <div class="grid grid-cols-3 gap-4 mb-6">
+            <div class="bg-bg rounded-xl p-4 border border-border">
+              <div class="text-xs text-sub mb-1 uppercase tracking-wider">Confidence</div>
+              <div id="res-confidence" class="font-display font-700 text-2xl text-accent"></div>
+            </div>
+            <div class="bg-bg rounded-xl p-4 border border-border">
+              <div class="text-xs text-sub mb-1 uppercase tracking-wider">Symptom Count</div>
+              <div id="res-count" class="font-display font-700 text-2xl text-text"></div>
+            </div>
+            <div class="bg-bg rounded-xl p-4 border border-border">
+              <div class="text-xs text-sub mb-1 uppercase tracking-wider">Urgency Score</div>
+              <div id="res-urgency" class="font-display font-700 text-2xl text-warn"></div>
+            </div>
+          </div>
+
+          <!-- Extracted symptoms -->
+          <div class="mb-5">
+            <div class="text-xs text-sub uppercase tracking-wider mb-3">Extracted Symptoms & Entities</div>
+            <div id="symptoms-list" class="flex flex-wrap gap-2"></div>
+          </div>
+
+          <!-- Diagnosis summary -->
+          <div class="bg-bg rounded-xl p-5 border border-border">
+            <div class="text-xs text-sub uppercase tracking-wider mb-2">Diagnostic Summary</div>
+            <p id="res-summary" class="text-sm text-text leading-relaxed"></p>
+          </div>
+
+          <!-- Disclaimer -->
+          <div class="mt-4 flex items-start gap-2 text-xs text-muted">
+            <i data-lucide="info" class="w-3.5 h-3.5 flex-shrink-0 mt-0.5"></i>
+            This is an AI-assisted analysis for clinical support only. Always verify with a licensed medical professional.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── PAGE: Saved Records ─── -->
+  <section id="page-records" class="page px-8 py-8 fade-up">
+
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <div class="font-display font-700 text-base text-text">Saved Records</div>
+        <div class="text-xs text-sub">Cloudant DB (localStorage simulation)</div>
+      </div>
+      <div class="flex items-center gap-3">
+        <input id="search-records" type="text" class="px-4 py-2" placeholder="Search patient…"
+          oninput="renderRecords()" style="width:200px"/>
+        <button class="btn-ghost flex items-center gap-2" onclick="exportCSV()">
+          <i data-lucide="download" class="w-3.5 h-3.5"></i> Export CSV
+        </button>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="bg-card border border-border rounded-xl overflow-hidden">
+      <table class="w-full text-xs">
+        <thead>
+          <tr class="border-b border-border text-sub uppercase tracking-wider">
+            <th class="px-5 py-3 text-left font-500">ID</th>
+            <th class="px-5 py-3 text-left font-500">Patient</th>
+            <th class="px-5 py-3 text-left font-500">Age / Gender</th>
+            <th class="px-5 py-3 text-left font-500">Risk</th>
+            <th class="px-5 py-3 text-left font-500">Symptoms</th>
+            <th class="px-5 py-3 text-left font-500">Date</th>
+            <th class="px-5 py-3 text-left font-500">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="records-tbody">
+          <!-- JS renders rows -->
+        </tbody>
+      </table>
+      <div id="no-records" class="text-center py-12 text-sub text-xs hidden">
+        No records found. Save a diagnosis from Patient Intake.
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── PAGE: Settings ─── -->
+  <section id="page-settings" class="page px-8 py-8 fade-up max-w-2xl">
+
+    <div class="bg-card border border-border rounded-xl p-8 mb-5">
+      <div class="font-display font-700 text-base text-text mb-1">IBM API Configuration</div>
+      <div class="text-xs text-sub mb-6">
+        Production credentials — replace placeholders to activate real IBM Watson services
+      </div>
+
+      <!--
+        IBM WATSON NLU NOTE:
+        Endpoint: https://api.us-south.natural-language-understanding.watson.cloud.ibm.com/
+        instances/{instance_id}/v1/analyze?version=2022-04-07
+        Auth: Basic auth — username "apikey", password = your NLU API key
+        Body: { "text": "...", "features": { "entities": {}, "keywords": {}, "sentiment": {} } }
+      -->
+      <div class="mb-4">
+        <label class="block text-xs text-sub mb-2 uppercase tracking-wider">Watson NLU API Key</label>
+        <input id="cfg-nlu-key" type="password" class="w-full px-4 py-3" placeholder="••••••••••••••••"/>
+      </div>
+      <div class="mb-4">
+        <label class="block text-xs text-sub mb-2 uppercase tracking-wider">Watson NLU Endpoint URL</label>
+        <input id="cfg-nlu-url" type="text" class="w-full px-4 py-3"
+          value="https://api.us-south.natural-language-understanding.watson.cloud.ibm.com/instances/{instance_id}"/>
+      </div>
+
+      <!--
+        IBM TTS NOTE:
+        Endpoint: https://api.us-south.text-to-speech.watson.cloud.ibm.com/instances/{instance_id}/v1/synthesize
+        Auth: Basic auth — "apikey" + TTS API key
+        Body: { "text": "..." }   Accept: audio/wav
+        Voice param: ?voice=en-US_AllisonV3Voice
+      -->
+      <div class="mb-4">
+        <label class="block text-xs text-sub mb-2 uppercase tracking-wider">Watson TTS API Key</label>
+        <input id="cfg-tts-key" type="password" class="w-full px-4 py-3" placeholder="••••••••••••••••"/>
+      </div>
+      <div class="mb-6">
+        <label class="block text-xs text-sub mb-2 uppercase tracking-wider">Cloudant DB URL</label>
+        <input id="cfg-db-url" type="text" class="w-full px-4 py-3"
+          value="https://{account}.cloudantnosqldb.appdomain.cloud/{db_name}"/>
+      </div>
+
+      <button class="btn-primary" onclick="saveSettings()">Save Configuration</button>
+    </div>
+
+    <!-- Preferences -->
+    <div class="bg-card border border-border rounded-xl p-8">
+      <div class="font-display font-700 text-base text-text mb-5">Preferences</div>
+      <div class="flex flex-col gap-4">
+
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-sm text-text">Auto-read diagnosis</div>
+            <div class="text-xs text-sub">Read analysis aloud after each scan</div>
+          </div>
+          <div class="toggle-switch" id="tog-autoread" onclick="toggle('autoread')"></div>
+        </div>
+
+        <div class="border-t border-border"></div>
+
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-sm text-text">High-risk alerts</div>
+            <div class="text-xs text-sub">Flash warning when high risk is detected</div>
+          </div>
+          <div class="toggle-switch on" id="tog-alerts" onclick="toggle('alerts')"></div>
+        </div>
+
+        <div class="border-t border-border"></div>
+
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-sm text-text">Auto-save to Cloudant</div>
+            <div class="text-xs text-sub">Save every analysis automatically</div>
+          </div>
+          <div class="toggle-switch" id="tog-autosave" onclick="toggle('autosave')"></div>
+        </div>
+
+        <div class="border-t border-border"></div>
+
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-sm text-text">Compact table view</div>
+            <div class="text-xs text-sub">Smaller rows in Saved Records</div>
+          </div>
+          <div class="toggle-switch" id="tog-compact" onclick="toggle('compact')"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- ═══════════════════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════════════════ -->
+<script>
+/* ── Init Lucide icons ── */
+lucide.createIcons();
+
+/* ══════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════ */
+let currentAnalysis = null;       // result of the last Watson NLU simulation
+let isSpeaking      = false;
+let preferences     = { autoread: false, alerts: true, autosave: false, compact: false };
+
+/* ══════════════════════════════════════════════
+   NAVIGATION
+══════════════════════════════════════════════ */
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelector(`.nav-item[onclick="navigate('${page}')"]`).classList.add('active');
+
+  const titles = {
+    dashboard: ['Dashboard', 'Overview & system status'],
+    intake:    ['Patient Intake', 'New diagnostic session'],
+    records:   ['Saved Records', 'Cloudant database (simulated)'],
+    settings:  ['Settings', 'API keys & preferences'],
+  };
+  document.getElementById('page-title').textContent = titles[page][0];
+  document.getElementById('page-sub').textContent   = titles[page][1];
+
+  if (page === 'records') renderRecords();
+  if (page === 'dashboard') refreshDashboard();
+
+  // Re-init icons on newly visible elements
+  lucide.createIcons();
+}
+
+/* ══════════════════════════════════════════════
+   CLOCK
+══════════════════════════════════════════════ */
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleTimeString('en-US', { hour12: false });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+/* ══════════════════════════════════════════════
+   SIMULATED IBM WATSON NLU
+   ─────────────────────────────────────────────
+   PRODUCTION NOTE:
+   Replace this entire function body with a real fetch() call:
+
+   const response = await fetch(
+     `${NLU_ENDPOINT}/v1/analyze?version=2022-04-07`,
+     {
+       method: 'POST',
+       headers: {
+         'Authorization': 'Basic ' + btoa('apikey:' + NLU_API_KEY),
+         'Content-Type': 'application/json',
+       },
+       body: JSON.stringify({
+         text: notes,
+         features: {
+           entities:   { sentiment: true, limit: 10 },
+           keywords:   { sentiment: true, limit: 10 },
+           sentiment:  {},
+           categories: {},
+         }
+       })
+     }
+   );
+   const data = await response.json();
+   // Map data.entities / data.keywords to our symptom list
+   // Map data.sentiment.document.score to severity
+══════════════════════════════════════════════ */
+
+const SYMPTOM_KEYWORDS = [
+  'fever','cough','headache','fatigue','nausea','vomiting','diarrhea',
+  'chest pain','shortness of breath','palpitations','dizziness',
+  'sweating','chills','sore throat','rash','swelling','pain',
+  'weakness','confusion','blurred vision','abdominal pain',
+  'back pain','joint pain','loss of appetite','weight loss',
+  'insomnia','anxiety','depression','numbness','tingling',
+  'hypertension','diabetes','infection','inflammation','dehydration',
+];
+
+function simulateWatsonNLU(notes) {
+  const lower = notes.toLowerCase();
+
+  // Extract matching symptoms
+  const found = SYMPTOM_KEYWORDS.filter(kw => lower.includes(kw));
+  // Add any capitalized medical terms from text
+  const extraMatch = notes.match(/\b[A-Z][a-z]{3,}\b/g) || [];
+  const extras = extraMatch.filter(w => !['The','This','Patient','Please','With'].includes(w)).slice(0, 4);
+
+  const symptoms = [...new Set([...found, ...extras])];
+
+  // Heuristic severity scoring
+  const highTriggers = ['chest pain','shortness of breath','palpitations','confusion',
+                        'severe','emergency','critical','hypertension','blood pressure',
+                        'collapse','unconscious','stroke','heart'];
+  const medTriggers  = ['fever','vomiting','diarrhea','pain','swelling','infection',
+                        'inflammation','moderate','persistent','chronic'];
+
+  let score = 0;
+  highTriggers.forEach(t => { if (lower.includes(t)) score += 3; });
+  medTriggers.forEach(t  => { if (lower.includes(t)) score += 1; });
+  score += Math.min(symptoms.length, 5);
+
+  let risk, severity, urgency;
+  if (score >= 8) {
+    risk = 'high'; severity = 'Severe — Immediate clinical attention required'; urgency = Math.min(97, 75 + score);
+  } else if (score >= 4) {
+    risk = 'medium'; severity = 'Moderate — Schedule prompt evaluation'; urgency = Math.min(65, 40 + score);
+  } else {
+    risk = 'low'; severity = 'Mild — Routine follow-up advised'; urgency = Math.max(10, score * 4);
+  }
+
+  const confidence = Math.min(99, 72 + symptoms.length * 2 + Math.floor(Math.random() * 8));
+
+  const summaries = {
+    high: `Patient presents with ${symptoms.slice(0,3).join(', ')} alongside markers of elevated cardiovascular or systemic stress. IBM Watson NLU identifies high-confidence entities consistent with acute or serious pathology. Recommend immediate physician review and diagnostic workup including labs and imaging.`,
+    medium: `Presenting symptoms of ${symptoms.slice(0,3).join(', ')} suggest a moderate clinical picture. Watson NLU entity extraction indicates potential for progression. Physician evaluation within 24–48 hours is advised. Monitor vitals and symptom trajectory.`,
+    low: `The clinical notes describe ${symptoms.length > 0 ? symptoms.slice(0,2).join(' and ') : 'general discomfort'} consistent with a mild presentation. Watson NLU analysis finds no high-risk semantic patterns. Recommend standard follow-up appointment and patient self-monitoring.`,
+  };
+
+  return { symptoms, risk, severity, urgency, confidence, summary: summaries[risk] };
+}
+
+/* ══════════════════════════════════════════════
+   RUN ANALYSIS
+══════════════════════════════════════════════ */
+async function runAnalysis() {
+  const name   = document.getElementById('inp-name').value.trim();
+  const age    = document.getElementById('inp-age').value.trim();
+  const gender = document.getElementById('inp-gender').value;
+  const notes  = document.getElementById('inp-notes').value.trim();
+
+  if (!name || !notes) { toast('⚠ Please enter patient name and clinical notes.'); return; }
+
+  const btn = document.getElementById('btn-analyze');
+  btn.disabled = true;
+  btn.innerHTML = `<span class="flex items-center gap-2"><i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Analyzing…</span>`;
+  lucide.createIcons();
+
+  // Show result card with skeleton
+  const card = document.getElementById('result-card');
+  card.classList.remove('hidden');
+  document.getElementById('skeleton').classList.remove('hidden');
+  document.getElementById('result-content').classList.add('hidden');
+
+  // Simulate network latency (IBM API call)
+  await sleep(1600 + Math.random() * 800);
+
+  const result = simulateWatsonNLU(notes);
+
+  // Attach patient data to result
+  result.name   = name;
+  result.age    = age;
+  result.gender = gender;
+  result.notes  = notes;
+  result.date   = new Date().toISOString();
+  currentAnalysis = result;
+
+  // Populate UI
+  const riskColors = { high: 'badge-high', medium: 'badge-medium', low: 'badge-low' };
+  const riskBadge = document.getElementById('risk-badge');
+  riskBadge.textContent = result.risk.toUpperCase();
+  riskBadge.className = `px-3 py-1 rounded-full text-xs font-700 font-display ${riskColors[result.risk]}`;
+
+  document.getElementById('severity-text').textContent = result.severity;
+  document.getElementById('res-confidence').textContent = result.confidence + '%';
+  document.getElementById('res-count').textContent = result.symptoms.length;
+  document.getElementById('res-urgency').textContent = result.urgency + '/100';
+  document.getElementById('res-summary').textContent = result.summary;
+
+  // Symptoms chips
+  const chipColors = { high:'text-danger border-danger/30 bg-danger/5', medium:'text-warn border-warn/30 bg-warn/5', low:'text-accent border-accent/30 bg-accent/5' };
+  const sl = document.getElementById('symptoms-list');
+  sl.innerHTML = result.symptoms.length
+    ? result.symptoms.map(s =>
+        `<span class="px-3 py-1 rounded-full border text-xs ${chipColors[result.risk]}">${s}</span>`
+      ).join('')
+    : '<span class="text-xs text-muted">No specific entities extracted from notes.</span>';
+
+  // Show content
+  document.getElementById('skeleton').classList.add('hidden');
+  document.getElementById('result-content').classList.remove('hidden');
+  document.getElementById('result-content').classList.add('fade-up');
+  lucide.createIcons();
+
+  // Auto-save if enabled
+  if (preferences.autosave) saveRecord(true);
+
+  // High-risk alert
+  if (result.risk === 'high' && preferences.alerts) {
+    toast('🔴 HIGH RISK detected — immediate physician review required!', 5000);
+  }
+
+  // Auto-read
+  if (preferences.autoread) speakDiagnosis();
+
+  btn.disabled = false;
+  btn.innerHTML = `<i data-lucide="cpu" class="w-4 h-4"></i> Analyze with Watson NLU`;
+  lucide.createIcons();
+}
+
+/* ══════════════════════════════════════════════
+   SIMULATED IBM TEXT-TO-SPEECH (Browser SpeechSynthesis)
+   ─────────────────────────────────────────────
+   PRODUCTION NOTE:
+   Replace with a real IBM TTS call:
+
+   const response = await fetch(
+     `${TTS_ENDPOINT}/v1/synthesize?voice=en-US_AllisonV3Voice`,
+     {
+       method: 'POST',
+       headers: {
+         'Authorization': 'Basic ' + btoa('apikey:' + TTS_API_KEY),
+         'Content-Type': 'application/json',
+         'Accept': 'audio/wav',
+       },
+       body: JSON.stringify({ text: speechText }),
+     }
+   );
+   const blob = await response.blob();
+   const url  = URL.createObjectURL(blob);
+   const audio = new Audio(url);
+   audio.play();
+══════════════════════════════════════════════ */
+function speakDiagnosis() {
+  if (!currentAnalysis) { toast('Run an analysis first.'); return; }
+  if (isSpeaking) { window.speechSynthesis.cancel(); stopTTS(); return; }
+
+  const text = `Patient ${currentAnalysis.name}, age ${currentAnalysis.age || 'unknown'}. 
+    Risk level: ${currentAnalysis.risk}. ${currentAnalysis.severity}. 
+    ${currentAnalysis.summary}
+    Extracted symptoms: ${currentAnalysis.symptoms.slice(0,5).join(', ') || 'none identified'}.`;
+
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate  = 0.88;
+  utter.pitch = 0.95;
+  utter.lang  = 'en-US';
+
+  // Try a natural voice
+  const voices = window.speechSynthesis.getVoices();
+  const preferred = voices.find(v => v.name.includes('Allison') || v.name.includes('Google US English') || v.name.includes('Samantha'));
+  if (preferred) utter.voice = preferred;
+
+  utter.onstart = () => {
+    isSpeaking = true;
+    document.getElementById('tts-wave').classList.remove('hidden');
+    document.getElementById('tts-wave').classList.add('flex');
+    document.getElementById('btn-tts').innerHTML = `<i data-lucide="square" class="w-3.5 h-3.5"></i> Stop`;
+    lucide.createIcons();
+  };
+  utter.onend = utter.onerror = stopTTS;
+
+  window.speechSynthesis.speak(utter);
+}
+
+function stopTTS() {
+  isSpeaking = false;
+  document.getElementById('tts-wave').classList.add('hidden');
+  document.getElementById('tts-wave').classList.remove('flex');
+  const btn = document.getElementById('btn-tts');
+  if (btn) { btn.innerHTML = `<i data-lucide="volume-2" class="w-3.5 h-3.5"></i> Read Diagnosis`; lucide.createIcons(); }
+}
+
+/* ══════════════════════════════════════════════
+   CLOUDANT SIMULATION (localStorage)
+   ─────────────────────────────────────────────
+   PRODUCTION NOTE:
+   Replace loadRecords / saveRecord / deleteRecord with:
+   GET    {CLOUDANT_URL}/{db}/_all_docs?include_docs=true
+   POST   {CLOUDANT_URL}/{db}                 (save)
+   DELETE {CLOUDANT_URL}/{db}/{doc_id}?rev={rev} (delete)
+   Auth: Basic or IAM token via IBM Cloud IAM
+══════════════════════════════════════════════ */
+
+function loadRecords() {
+  try { return JSON.parse(localStorage.getItem('cadx_records') || '[]'); }
+  catch { return []; }
+}
+
+function persistRecords(records) {
+  localStorage.setItem('cadx_records', JSON.stringify(records));
+}
+
+function saveRecord(silent = false) {
+  if (!currentAnalysis) { if (!silent) toast('Nothing to save yet.'); return; }
+  const records = loadRecords();
+  const id = 'REC-' + Date.now().toString(36).toUpperCase();
+  records.unshift({ id, ...currentAnalysis });
+  persistRecords(records);
+  refreshDashboard();
+  if (!silent) toast('✓ Record saved to Cloudant (localStorage).');
+}
+
+function deleteRecord(id) {
+  let records = loadRecords().filter(r => r.id !== id);
+  persistRecords(records);
+  renderRecords();
+  refreshDashboard();
+  toast('Record deleted.');
+}
+
+/* ══════════════════════════════════════════════
+   RENDER RECORDS TABLE
+══════════════════════════════════════════════ */
+function renderRecords() {
+  const query   = (document.getElementById('search-records')?.value || '').toLowerCase();
+  let records = loadRecords();
+  if (query) records = records.filter(r => r.name.toLowerCase().includes(query));
+
+  const tbody = document.getElementById('records-tbody');
+  const none  = document.getElementById('no-records');
+
+  if (!records.length) {
+    tbody.innerHTML = '';
+    none.classList.remove('hidden');
+    return;
+  }
+  none.classList.add('hidden');
+
+  const riskColors = {
+    high:   'badge-high',
+    medium: 'badge-medium',
+    low:    'badge-low',
+  };
+
+  tbody.innerHTML = records.map(r => `
+    <tr class="record-row border-t border-border text-xs">
+      <td class="px-5 py-3 text-muted font-mono">${r.id}</td>
+      <td class="px-5 py-3 text-text font-display font-600">${r.name}</td>
+      <td class="px-5 py-3 text-sub">${r.age || '—'} / ${r.gender || '—'}</td>
+      <td class="px-5 py-3">
+        <span class="px-2 py-0.5 rounded-full text-xs font-700 ${riskColors[r.risk]}">${r.risk?.toUpperCase()}</span>
+      </td>
+      <td class="px-5 py-3 text-sub max-w-xs truncate">${r.symptoms?.slice(0,4).join(', ') || '—'}</td>
+      <td class="px-5 py-3 text-muted font-mono">${new Date(r.date).toLocaleDateString()}</td>
+      <td class="px-5 py-3">
+        <div class="flex items-center gap-2">
+          <button class="btn-ghost py-1 px-2" onclick="viewRecord('${r.id}')">
+            <i data-lucide="eye" class="w-3.5 h-3.5"></i>
+          </button>
+          <button class="btn-ghost py-1 px-2 hover:border-danger hover:text-danger" onclick="deleteRecord('${r.id}')">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+
+  lucide.createIcons();
+}
+
+/* View record: load it into intake page */
+function viewRecord(id) {
+  const record = loadRecords().find(r => r.id === id);
+  if (!record) return;
+  currentAnalysis = record;
+  document.getElementById('inp-name').value   = record.name;
+  document.getElementById('inp-age').value    = record.age;
+  document.getElementById('inp-gender').value = record.gender;
+  document.getElementById('inp-notes').value  = record.notes;
+  // Populate result card
+  navigate('intake');
+  setTimeout(() => populateResultFromCurrent(), 100);
+}
+
+function populateResultFromCurrent() {
+  if (!currentAnalysis) return;
+  const r = currentAnalysis;
+  const riskColors = { high: 'badge-high', medium: 'badge-medium', low: 'badge-low' };
+  const chipColors = { high:'text-danger border-danger/30 bg-danger/5', medium:'text-warn border-warn/30 bg-warn/5', low:'text-accent border-accent/30 bg-accent/5' };
+
+  document.getElementById('result-card').classList.remove('hidden');
+  document.getElementById('skeleton').classList.add('hidden');
+  document.getElementById('result-content').classList.remove('hidden');
+
+  const riskBadge = document.getElementById('risk-badge');
+  riskBadge.textContent = r.risk?.toUpperCase();
+  riskBadge.className = `px-3 py-1 rounded-full text-xs font-700 font-display ${riskColors[r.risk]}`;
+  document.getElementById('severity-text').textContent = r.severity;
+  document.getElementById('res-confidence').textContent = r.confidence + '%';
+  document.getElementById('res-count').textContent = r.symptoms?.length;
+  document.getElementById('res-urgency').textContent = r.urgency + '/100';
+  document.getElementById('res-summary').textContent = r.summary;
+  document.getElementById('symptoms-list').innerHTML = r.symptoms?.map(s =>
+    `<span class="px-3 py-1 rounded-full border text-xs ${chipColors[r.risk]}">${s}</span>`
+  ).join('') || '—';
+  lucide.createIcons();
+}
+
+/* ══════════════════════════════════════════════
+   DASHBOARD REFRESH
+══════════════════════════════════════════════ */
+function refreshDashboard() {
+  const records = loadRecords();
+  const high   = records.filter(r => r.risk === 'high').length;
+  const medium = records.filter(r => r.risk === 'medium').length;
+  const low    = records.filter(r => r.risk === 'low').length;
+
+  document.getElementById('stat-total').textContent  = records.length;
+  document.getElementById('stat-high').textContent   = high;
+  document.getElementById('stat-medium').textContent = medium;
+  document.getElementById('stat-low').textContent    = low;
+
+  // Recent list
+  const rl = document.getElementById('recent-list');
+  const riskColors = { high:'text-danger', medium:'text-warn', low:'text-accent' };
+  rl.innerHTML = records.length
+    ? records.slice(0,5).map(r => `
+      <div class="flex items-center justify-between px-4 py-3 bg-bg rounded-lg border border-border">
+        <div>
+          <span class="text-sm text-text font-display font-600">${r.name}</span>
+          <span class="text-xs text-muted ml-2">${r.age ? r.age + 'y' : ''} ${r.gender || ''}</span>
+        </div>
+        <span class="text-xs font-700 ${riskColors[r.risk]} uppercase">${r.risk}</span>
+      </div>`).join('')
+    : '<div class="text-xs text-muted text-center py-8">No records yet. Start a patient intake.</div>';
+
+  // Chart
+  renderChart(records);
+}
+
+function renderChart(records) {
+  const days  = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const today = new Date().getDay(); // 0=Sun
+  const counts = Array(7).fill(0);
+  records.forEach(r => {
+    const d = new Date(r.date);
+    const diff = Math.floor((new Date() - d) / 86400000);
+    if (diff < 7) counts[6 - diff]++;
+  });
+  const max = Math.max(...counts, 1);
+
+  const barsEl   = document.getElementById('chart-bars');
+  const labelsEl = document.getElementById('chart-labels');
+  const dayLabels = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    dayLabels.push(days[(d.getDay() + 6) % 7]);
+  }
+
+  barsEl.innerHTML = counts.map((c, i) => {
+    const pct = Math.round((c / max) * 100);
+    return `<div class="flex-1 flex flex-col items-center gap-1">
+      <span class="text-xs text-sub">${c || ''}</span>
+      <div class="w-full rounded-t-md chart-bar bg-accent/70" style="height:${Math.max(pct, 4)}%; min-height:4px;"></div>
+    </div>`;
+  }).join('');
+
+  labelsEl.innerHTML = dayLabels.map(d =>
+    `<div class="flex-1 text-center text-xs text-muted">${d}</div>`
+  ).join('');
+}
+
+/* ══════════════════════════════════════════════
+   EXPORT CSV
+══════════════════════════════════════════════ */
+function exportCSV() {
+  const records = loadRecords();
+  if (!records.length) { toast('No records to export.'); return; }
+  const header = 'ID,Name,Age,Gender,Risk,Severity,Confidence,Symptoms,Date\n';
+  const rows = records.map(r =>
+    `${r.id},"${r.name}",${r.age},"${r.gender}","${r.risk}","${r.severity}",${r.confidence},"${(r.symptoms||[]).join(';')}","${r.date}"`
+  ).join('\n');
+  const blob = new Blob([header + rows], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `cadx_records_${Date.now()}.csv`;
+  a.click();
+  toast('✓ CSV exported.');
+}
+
+/* ══════════════════════════════════════════════
+   SETTINGS
+══════════════════════════════════════════════ */
+function toggle(key) {
+  preferences[key] = !preferences[key];
+  const el = document.getElementById('tog-' + key);
+  el.classList.toggle('on', preferences[key]);
+  toast(`${key.replace(/([A-Z])/g,' $1')} ${preferences[key] ? 'enabled' : 'disabled'}.`);
+}
+
+function saveSettings() {
+  toast('✓ Configuration saved. Connect real IBM endpoints to activate.');
+}
+
+/* ══════════════════════════════════════════════
+   UTILS
+══════════════════════════════════════════════ */
+function clearForm() {
+  ['inp-name','inp-age','inp-notes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('inp-gender').value = '';
+  document.getElementById('result-card').classList.add('hidden');
+  currentAnalysis = null;
+  window.speechSynthesis.cancel();
+  stopTTS();
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+let toastTimer;
+function toast(msg, duration = 3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), duration);
+}
+
+/* ══════════════════════════════════════════════
+   BOOT
+══════════════════════════════════════════════ */
+refreshDashboard();
+
+// Seed a couple of demo records if DB is empty
+if (!loadRecords().length) {
+  const demo = [
+    {
+      id: 'REC-DEMO01', name: 'Priya Sharma', age: '62', gender: 'Female',
+      notes: 'Severe chest pain, shortness of breath, sweating, dizziness for 2 hours.',
+      risk: 'high', severity: 'Severe — Immediate clinical attention required',
+      symptoms: ['chest pain','shortness of breath','sweating','dizziness'],
+      confidence: 94, urgency: 91,
+      summary: 'High-risk presentation consistent with acute cardiac event. Immediate workup required.',
+      date: new Date(Date.now() - 86400000).toISOString(),
+    },
+    {
+      id: 'REC-DEMO02', name: 'Arjun Mehta', age: '34', gender: 'Male',
+      notes: 'Persistent headache for 3 days, mild fever, fatigue.',
+      risk: 'medium', severity: 'Moderate — Schedule prompt evaluation',
+      symptoms: ['headache','fever','fatigue'],
+      confidence: 81, urgency: 52,
+      summary: 'Moderate presentation. Could indicate viral illness or tension headache. Evaluate within 48h.',
+      date: new Date(Date.now() - 3600000 * 5).toISOString(),
+    },
+  ];
+  persistRecords(demo);
+  refreshDashboard();
+}
+</script>
+</body>
+</html>

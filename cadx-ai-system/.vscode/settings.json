@@ -1,0 +1,14 @@
+{
+  "editor.formatOnSave": true,
+  "editor.tabSize": 2,
+  "editor.wordWrap": "on",
+  "liveServer.settings.donotShowInfoMsg": true,
+  "liveServer.settings.port": 5500,
+  "files.associations": {
+    "*.env": "dotenv"
+  },
+  "tailwindCSS.includeLanguages": {
+    "html": "html"
+  },
+  "editor.defaultFormatter": "esbenp.prettier-vscode"
+}
